@@ -1,0 +1,36 @@
+# env & secrets
+.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.sqlite
+*.db
+
+# logs & runtime
+*.log
+logs/
+log/
+tmp/
+cache/
+prompt_logs/
+
+# deps / builds
+node_modules/
+vendor/
+dist/
+build/
+.bundle/
+coverage/
+
+# uploads & binaries
+public/uploads/
+wp-content/uploads/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
