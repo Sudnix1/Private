@@ -6,170 +6,181 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
+const apiKeyManager = require('../api-key-manager');
 
 /**
- * Simple translation function using free Google Translate API
+ * Translation function using OpenAI API
  * @param {string} text - Text to translate
- * @param {string} targetLang - Target language (default: 'en')
+ * @param {string} targetLang - Target language (default: 'English')
  * @returns {Promise<string>} - Translated text
  */
-async function translateText(text, targetLang = 'en') {
+async function translateText(text, targetLang = 'English') {
   if (!text || text.length < 3) return text;
   
   try {
-    // Use Google Translate API (free version)
-    const response = await axios.get('https://translate.googleapis.com/translate_a/single', {
-      params: {
-        client: 'gtx',
-        sl: 'auto',      // auto-detect source language
-        tl: targetLang,  // target language (default: English)
-        dt: 't',         // return translated text
-        q: text          // text to translate
-      }
-    });
+    console.log(`🌐 [TRANSLATE] Starting OpenAI translation for: "${text.substring(0, 50)}..."`);
     
-    if (response.data && response.data[0]) {
-      // Extract translated text
-      const translatedText = response.data[0]
-        .map(segment => segment[0])
-        .join('');
+    // Get OpenAI API key using the validated API key manager
+    const apiKey = await apiKeyManager.getApiKey('openai');
+    if (!apiKey || apiKey.length < 20) {
+      console.log(`⚠️ [TRANSLATE] No valid OpenAI API key available, returning original text`);
+      return text;
+    }
+    
+    console.log(`🔑 [TRANSLATE] Using API key: ${apiKey.substring(0, 20)}...`);
+
+    // Check if text is already in English (simple check)
+    const isEnglish = /^[a-zA-Z0-9\s.,!?;:'"()-]+$/.test(text);
+    if (targetLang.toLowerCase() === 'english' && isEnglish) {
+      console.log(`🌐 [TRANSLATE] Text appears to already be in English, skipping translation`);
+      return text;
+    }
+
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini-2024-07-18',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional translator specializing in food and cooking terminology. Translate the given text to ${targetLang}. Keep food names, ingredients, and cooking terms accurate. Return only the translated text without explanations.`
+          },
+          {
+            role: 'user',
+            content: `Translate this text to ${targetLang}: "${text}"`
+          }
+        ],
+        max_tokens: 150,
+        temperature: 0.3
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (response.data && response.data.choices && response.data.choices[0]) {
+      const translatedText = response.data.choices[0].message.content.trim();
       
-      // Get detected source language
-      const detectedLang = response.data[2] || 'unknown';
+      // Remove any quotes that OpenAI might add
+      const cleanTranslatedText = translatedText.replace(/^["']|["']$/g, '');
       
-      // Only log if not already in target language
-      if (detectedLang !== targetLang) {
-        console.log(`🌐 [TRANSLATE] "${text}" (${detectedLang}) → "${translatedText}" (${targetLang})`);
+      if (cleanTranslatedText !== text) {
+        console.log(`🌐 [TRANSLATE] OpenAI: "${text}" → "${cleanTranslatedText}"`);
       }
       
-      return translatedText;
+      return cleanTranslatedText;
     }
     
     return text; // Fallback to original text
   } catch (error) {
-    console.error(`❌ [TRANSLATE] Error translating text: ${error.message}`);
+    console.error(`❌ [TRANSLATE] OpenAI translation error: ${error.message}`);
     return text; // Fallback to original text
   }
 }
 
 /**
- * Detect and translate recipe components in a prompt to English
+ * Enhanced function to translate recipe components in a prompt to English using OpenAI
  * @param {string} prompt - The complete prompt text
  * @returns {Promise<string>} - Prompt with recipe components translated to English
  */
 async function translateRecipeComponentsInPrompt(prompt) {
   if (!prompt) return prompt;
   
-  console.log('🌐 [TRANSLATE] Checking prompt for recipe components to translate');
+  console.log('🌐 [TRANSLATE] Starting OpenAI-powered recipe component translation');
+  console.log(`🌐 [TRANSLATE] Original prompt: "${prompt.substring(0, 100)}..."`);
   
-  // STEP 1: First translate the entire prompt to identify all text that needs translation
-  // This ensures we catch everything, even if the format is unusual
-  const completeTranslatedPrompt = await translateText(prompt);
-  
-  // STEP 2: Identify key sections in both original and translated prompts
-  const sections = [
-    {
-      name: 'recipe title',
-      regex: /Recipe:\s*([^.]+)(?:\.|\n|$)/i,
-      translationNeeded: true
-    },
-    {
-      name: 'ingredients',
-      // Match ingredients section - flexible to catch variations like "ingr", "ingredients:", etc.
-      regex: /(?:ingr\w*:?|ingredients:?)\s*((?:(?:[^.]*?,)+[^.]*?)(?:\.|\n|$))/i,
-      translationNeeded: true
-    },
-    {
-      name: 'plating description',
-      regex: /(A close-up shot[^.]+\.)/i,
-      translationNeeded: false // We don't need to translate this part
-    },
-    {
-      name: 'midjourney params',
-      regex: /(-+v\s+[\d.]+\s+-+s\s+\d+)/i,
-      translationNeeded: false // Don't translate Midjourney parameters
-    }
-  ];
-  
-  // Start with the original prompt
-  let resultPrompt = prompt;
-  
-  // Process each section
-  for (const section of sections) {
-    const originalMatch = prompt.match(section.regex);
+  try {
+    // FIXED: Extract and preserve image URL before translation
+    let imageUrl = '';
+    let promptWithoutUrl = prompt;
     
-    if (originalMatch && originalMatch[1]) {
-      // If this section needs translation
-      if (section.translationNeeded) {
-        const originalText = originalMatch[1].trim();
-        const translatedText = await translateText(originalText);
-        
-        if (translatedText !== originalText) {
-          console.log(`🌐 [TRANSLATE] ${section.name}: "${originalText}" → "${translatedText}"`);
-          
-          // Replace in the result prompt
-          resultPrompt = resultPrompt.replace(originalMatch[0], originalMatch[0].replace(originalText, translatedText));
+    // Check if prompt starts with an image URL
+    const urlMatch = prompt.match(/^(https?:\/\/[^\s]+)\s+(.*)/);
+    if (urlMatch) {
+      imageUrl = urlMatch[1];
+      promptWithoutUrl = urlMatch[2];
+      console.log(`🖼️ [TRANSLATE] Extracted image URL: ${imageUrl.substring(0, 50)}...`);
+      console.log(`📝 [TRANSLATE] Prompt without URL: "${promptWithoutUrl.substring(0, 100)}..."`);
+    }
+    
+    // Get OpenAI API key using the validated API key manager
+    const apiKey = await apiKeyManager.getApiKey('openai');
+    if (!apiKey || apiKey.length < 20) {
+      console.log(`⚠️ [TRANSLATE] No valid OpenAI API key available, returning original prompt`);
+      return prompt;
+    }
+    
+    console.log(`🔑 [TRANSLATE] Using API key: ${apiKey.substring(0, 20)}...`);
+
+    // Use OpenAI to intelligently translate the entire prompt while preserving structure
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini-2024-07-18',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert translator specializing in Midjourney prompts for food photography. Your task is to:
+
+1. Translate any non-English recipe names, ingredients, and food terms to English
+2. Keep all English food photography terms unchanged (like "close-up shot", "professional food photography", "shallow depth of field")
+3. Preserve all Midjourney parameters (like --v 6 --q 2, image URLs, etc.)
+4. Keep the exact same structure and formatting
+5. Ensure accurate culinary translations for ingredients and cooking methods
+6. Return ONLY the translated prompt without explanations
+
+Examples:
+- "Poulet rôti aux herbes" → "Roasted herb chicken"
+- "Pasta carbonara con pancetta" → "Carbonara pasta with pancetta"
+- Keep: "professional food photography, 4k, detailed"
+- Keep: "--v 6 --q 2" or any image URLs`
+          },
+          {
+            role: 'user',
+            content: promptWithoutUrl || prompt
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.2
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
         }
       }
-    }
-  }
-  
-  // For ingredients specifically, we need to handle individual ingredients too
-  const ingredientsSection = sections.find(s => s.name === 'ingredients');
-  const ingredientsMatch = prompt.match(ingredientsSection.regex);
-  
-  if (ingredientsMatch && ingredientsMatch[1]) {
-    // Extract the ingredients list
-    const ingredientsList = ingredientsMatch[1].trim();
-    
-    // Split by commas
-    const ingredients = ingredientsList.split(',').map(ing => ing.trim()).filter(Boolean);
-    
-    // Translate each ingredient individually
-    let translatedIngredientsList = ingredientsList;
-    
-    for (const ingredient of ingredients) {
-      if (ingredient.length > 2) {
-        const translatedIngredient = await translateText(ingredient);
+    );
+
+    if (response.data && response.data.choices && response.data.choices[0]) {
+      const translatedPromptText = response.data.choices[0].message.content.trim();
+      
+      // FIXED: Recombine with image URL if it was extracted
+      const finalTranslatedPrompt = imageUrl ? `${imageUrl} ${translatedPromptText}` : translatedPromptText;
+      
+      // Basic validation to ensure the translation makes sense
+      if (translatedPromptText.length > 0 && translatedPromptText !== (promptWithoutUrl || prompt)) {
+        console.log(`🌐 [TRANSLATE] OpenAI translation completed:`);
+        console.log(`🌐 [TRANSLATE] Original: "${prompt.substring(0, 80)}..."`);
+        console.log(`🌐 [TRANSLATE] Translated: "${finalTranslatedPrompt.substring(0, 80)}..."`);
         
-        if (translatedIngredient !== ingredient) {
-          console.log(`🌐 [TRANSLATE] Ingredient: "${ingredient}" → "${translatedIngredient}"`);
-          
-          // Replace the ingredient in the ingredients list
-          // Use word boundary or ensure we're replacing the exact ingredient
-          translatedIngredientsList = translatedIngredientsList.replace(
-            new RegExp(`(^|,\\s*)${ingredient.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(,|$)`, 'g'),
-            `$1${translatedIngredient}$2`
-          );
-        }
+        return finalTranslatedPrompt;
+      } else {
+        console.log(`🌐 [TRANSLATE] No translation needed or prompt unchanged`);
+        return prompt;
       }
     }
     
-    // Replace the ingredients list in the result prompt
-    if (translatedIngredientsList !== ingredientsList) {
-      resultPrompt = resultPrompt.replace(ingredientsList, translatedIngredientsList);
-    }
+    console.log(`⚠️ [TRANSLATE] No valid translation response, returning original`);
+    return prompt;
+    
+  } catch (error) {
+    console.error(`❌ [TRANSLATE] OpenAI prompt translation error: ${error.message}`);
+    console.log(`🌐 [TRANSLATE] Falling back to original prompt`);
+    return prompt;
   }
-  
-  // Check if the ingredients prefix needs to be fixed
-  const malformedIngredientsPrefixMatch = resultPrompt.match(/\b(ingr\w*:?)\b/i);
-  if (malformedIngredientsPrefixMatch && malformedIngredientsPrefixMatch[1] !== 'ingredients:') {
-    // Fix the ingredients prefix
-    resultPrompt = resultPrompt.replace(malformedIngredientsPrefixMatch[1], 'ingredients:');
-    console.log(`🌐 [TRANSLATE] Fixed ingredients prefix: "${malformedIngredientsPrefixMatch[1]}" → "ingredients:"`);
-  }
-  
-  // Final validation and cleaning
-  resultPrompt = resultPrompt
-    // Remove any double periods
-    .replace(/\.\./g, '.')
-    // Fix any comma spacing issues
-    .replace(/,\s*,/g, ',')
-    .replace(/\s+/g, ' ')
-    // Fix any artifacts from translation
-    .replace(/üsebrühe/g, 'vegetable broth');
-  
-  return resultPrompt;
 }
 
 /**
@@ -179,7 +190,7 @@ async function translateRecipeComponentsInPrompt(prompt) {
  * @returns {Promise<string>} Generated prompt
  */
 async function generatePrompt(recipe, imageUrl = null) {
-  console.log(`🌐 [TRANSLATE] Starting prompt generation with translation for recipe: ${recipe.recipe_idea}`);
+  console.log(`🌐 [TRANSLATE] Starting prompt generation with OpenAI translation for recipe: ${recipe.recipe_idea}`);
   
   // Use recipe_idea instead of title
   const recipeIdea = recipe.recipe_idea || '';
@@ -212,10 +223,10 @@ async function generatePrompt(recipe, imageUrl = null) {
     console.error('Error parsing ingredients:', error.message);
   }
   
-  // Translate recipe idea and ingredients to English
-  console.log('🌐 [TRANSLATE] Translating recipe text to English for better Midjourney results');
-  const translatedRecipeIdea = await translateText(recipeIdea);
-  const translatedIngredients = await translateText(ingredients);
+  // Translate recipe idea and ingredients to English using OpenAI
+  console.log('🌐 [TRANSLATE] Using OpenAI to translate recipe text for better Midjourney results');
+  const translatedRecipeIdea = await translateText(recipeIdea, 'English');
+  const translatedIngredients = await translateText(ingredients, 'English');
   
   // Log translation results
   if (translatedRecipeIdea !== recipeIdea) {
@@ -659,14 +670,14 @@ async function generateImageForRecipeWithSettings(recipeId, discordSettings = nu
       
       const mjStartTime = Date.now();
       
-      // Translate recipe components in the prompt
+      // Translate recipe components in the prompt using OpenAI
       const translatedFinalPrompt = await translateRecipeComponentsInPrompt(finalPrompt);
       if (translatedFinalPrompt !== finalPrompt) {
-        console.log(`🌐 [DEBUG] Translated recipe components in prompt`);
+        console.log(`🌐 [DEBUG] OpenAI translated recipe components in prompt`);
       }
       
       // Create the image (this is the long-running operation)
-      const mjResult = await client.createImage(translatedFinalPrompt, '--v 7 --q 2', null);
+      const mjResult = await client.createImage(translatedFinalPrompt, '--v 6.0 --s 250', null);
       
       const mjEndTime = Date.now();
       const mjDuration = mjEndTime - mjStartTime;
@@ -1180,14 +1191,14 @@ if (!client.userId || !client.guildId) {
     console.log(`Creating image with prompt: ${customPrompt.substring(0, 100)}...`);
     
     try {
-      // Translate recipe components in custom prompt
+      // Translate recipe components in custom prompt using OpenAI
       const translatedPrompt = await translateRecipeComponentsInPrompt(customPrompt);
       if (translatedPrompt !== customPrompt) {
-        console.log('🌐 [TRANSLATE] Translated recipe components in custom prompt');
+        console.log('🌐 [TRANSLATE] OpenAI translated recipe components in custom prompt');
       }
       
       // Create the image with MJ using the translated prompt
-      const result = await client.createImage(translatedPrompt, '--v 7 --q 2', null);
+      const result = await client.createImage(translatedPrompt, '--v 6.0 --s 250', null);
       
       if (!result || !result.upscaled_photo_url) {
         throw new Error('Failed to generate image URL');

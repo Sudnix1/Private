@@ -1,0 +1,36 @@
+
+==== PROMPT LOG: 2025-06-09T14:33:36.942Z ====
+Template ID: 2025-06-09T14:33:36.941Z
+
+--- SYSTEM PROMPT ---
+(No system prompt)
+
+--- USER PROMPT ---
+Simple Pasta Recipe
+
+Ingredients:
+
+2 cups pasta
+1 jar tomato sauce
+1 tsp salt
+
+Preparation :
+
+1- Boil water and cook the pasta
+2- Heat the tomato sauce  
+3- Mix together and serve
+
+IF USER PROVIDED THIS RECIPE ABOVE, USE THE EXACT SAME INGREDIENTS AND INSTRUCTIONS. Only improve the formatting, add emojis, and make it look professional. DO NOT CHANGE any ingredients or cooking steps.
+
+IF NO USER RECIPE WAS PROVIDED ABOVE (empty), then create a complete new recipe for Simple Pasta Recipe in English.
+
+For both cases, format the output with:
+1. An emoji and title at the beginning
+2. A brief introduction (2-3 sentences)
+3. Ingredients section with emoji 🧂 and ingredients listed with bullet points
+4. Preparation section with emoji 🧑‍🍳 and numbered steps
+5. A cooking tip at the end
+
+CRITICAL: If a user recipe was provided above, you MUST preserve the exact ingredients and cooking instructions. Only improve formatting and presentation.
+
+==== END PROMPT LOG ====

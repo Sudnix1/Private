@@ -1,0 +1,11 @@
+
+==== PROMPT LOG: 2025-06-09T14:26:41.278Z ====
+Template ID: 2025-06-09T14:26:41.277Z
+
+--- SYSTEM PROMPT ---
+(No system prompt)
+
+--- USER PROMPT ---
+Please provide information about Simple Pasta Recipe.
+
+==== END PROMPT LOG ====

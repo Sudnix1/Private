@@ -371,9 +371,11 @@ Make it copy-paste ready for WordPress.
 Follow the blog structure and tone described in the system prompt but rewrite section headings dynamically with SEO-friendly, benefit-focused language. Return only the blog post content as clean, publish-ready plain text. Do not include markdown, bullet formatting symbols, or explanations — just the blog content.`,
     
     // Facebook prompts
-    fbPrompt: process.env.FB_PROMPT || `{{userProvidedRecipe}}
+    fbPrompt: process.env.FB_PROMPT || `IMPORTANT: If the recipe content is in a foreign language (Dutch, German, French, etc.), TRANSLATE ALL content (recipe title, ingredients, and instructions) to natural English first, then format according to the template below.
 
-IF USER PROVIDED THIS RECIPE ABOVE (with ingredients and instructions), USE THE EXACT SAME INGREDIENTS AND INSTRUCTIONS. You MUST preserve every single measurement, quantity, ingredient name, and cooking step exactly as written. Only improve formatting with emojis.
+{{userProvidedRecipe}}
+
+IF USER PROVIDED THIS RECIPE ABOVE (with ingredients and instructions), USE THE EXACT SAME INGREDIENTS AND INSTRUCTIONS but translate to English if needed. You MUST preserve every single measurement, quantity, ingredient name, and cooking step exactly as written. Only improve formatting with emojis and translate to English if necessary.
 
 IF NO USER RECIPE WAS PROVIDED ABOVE (empty or just a recipe name), then create a complete new recipe for {{recipeIdea}} in {{language}}.
 
@@ -403,11 +405,11 @@ CRITICAL FORMATTING RULES:
 - Do NOT put ingredients in instructions section
 - Follow this exact structure with no deviations`,
     
-    fbCaptionPrompt: process.env.FB_CAPTION_PROMPT || `Create an engaging Facebook post caption for this recipe in {{language}}. The caption should be conversational, include 2-3 emojis, ask an engaging question, and invite comments. Keep it under 150 words and make sure it entices people to try the recipe. Here's the recipe:
+    fbCaptionPrompt: process.env.FB_CAPTION_PROMPT || `Create an engaging Facebook post caption for this recipe in ENGLISH (regardless of the original recipe language - always output in English). The caption should be conversational, include 2-3 emojis, ask an engaging question, and invite comments. Keep it under 150 words and make sure it entices people to try the recipe. Here's the recipe:
 
 {{recipe}}`,
     
-    mjTemplate: process.env.MJ_TEMPLATE || `Professional food photography of {{title}}, ingredients include {{ingredients}}, photo taken with a Canon EOS R5, 85mm lens, f/2.8, natural lighting, food styling, shallow depth of field, mouth-watering, magazine quality, top view, soft shadows, textured wood or marble background, garnished beautifully`
+    mjTemplate: process.env.MJ_TEMPLATE || `Professional food photography of "{{title}}" (translate recipe name to English if not already), showing visible ingredients: {{ingredients}} (translate all ingredients to English if not already), photo taken with a Canon EOS R5, 85mm lens, f/2.8, natural lighting, food styling, shallow depth of field, mouth-watering, magazine quality, top view, soft shadows, textured wood or marble background, garnished beautifully`
   }
 };
 
@@ -975,14 +977,17 @@ async function translateToEnglish(text) {
   }
   
   try {
-    // Try to get the API key from the manager first, then fall back to config
+    // Get API key - prioritize database (settings page), then environment, then config
     let apiKey = await apiKeyManager.getApiKey('openai');
-    if (!apiKey) {
+    if (!apiKey || apiKey.length < 20) {
+      apiKey = process.env.OPENAI_API_KEY;
+    }
+    if (!apiKey || apiKey.length < 20) {
       apiKey = config.apiKey; // Fall back to config for backward compatibility
     }
     
-    if (!apiKey) {
-      console.error('Translation Error: No API key available');
+    if (!apiKey || apiKey.length < 20) {
+      console.error('Translation Error: No valid API key available');
       return text;
     }
     
@@ -1016,6 +1021,10 @@ async function translateToEnglish(text) {
     return result;
   } catch (error) {
     console.error('Translation Error:', error.message);
+    // If it's an authentication error, skip translation to avoid repeated errors
+    if (error.response?.status === 401) {
+      console.log('⚠️ Skipping translation due to invalid API key. Please update your OpenAI API key.');
+    }
     return text;
   }
 }

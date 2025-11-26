@@ -1,0 +1,37 @@
+
+==== PROMPT LOG: 2025-06-09T13:57:25.785Z ====
+Template ID: 2025-06-09T13:57:25.784Z
+
+--- SYSTEM PROMPT ---
+(No system prompt)
+
+--- USER PROMPT ---
+Create a recipe for Simple Pasta Recipe in English.
+
+IF USER PROVIDED THIS RECIPE BELOW, USE THE EXACT SAME INGREDIENTS AND STEPS - DO NOT CHANGE ANYTHING:
+
+
+IF NO USER RECIPE WAS PROVIDED ABOVE (empty), then create a new recipe from scratch.
+
+CRITICAL RULES:
+- If user recipe exists above, copy the EXACT ingredients (same quantities, same names)
+- If user recipe exists above, copy the EXACT cooking steps (same process)
+- Only improve grammar and formatting, nothing else
+- Use this format:
+
+🍽️ [Recipe Title]
+
+🧂 Ingredients:
+• [Ingredient 1]
+• [Ingredient 2]
+• [etc...]
+
+🧑‍🍳 Instructions:
+1. [Step 1]
+2. [Step 2]
+3. [etc...]
+
+⏰ Prep Time: [time]
+👥 Servings: [number]
+
+==== END PROMPT LOG ====

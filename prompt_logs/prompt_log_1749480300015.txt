@@ -1,0 +1,11 @@
+
+==== PROMPT LOG: 2025-06-09T14:45:00.015Z ====
+Template ID: 2025-06-09T14:45:00.014Z
+
+--- SYSTEM PROMPT ---
+(No system prompt)
+
+--- USER PROMPT ---
+Please provide information about chocolate cake.
+
+==== END PROMPT LOG ====

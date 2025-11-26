@@ -133,12 +133,24 @@ class PinterestImageGenerator {
    */
   async downloadImage(imageUrl) {
     try {
-      // Handle relative URLs by converting to absolute
+      // FIXED: Check if it's a local file first (more reliable than HTTP)
+      if (imageUrl.startsWith('/recipe_images/') || imageUrl.includes('recipe_images/')) {
+        // Extract filename and build local path
+        const filename = imageUrl.replace(/^.*recipe_images\//, '');
+        const localPath = path.join(__dirname, 'recipe_images', filename);
+        
+        // Check if file exists locally
+        if (fs.existsSync(localPath)) {
+          console.log(`📁 Reading image from local file: ${localPath}`);
+          return fs.readFileSync(localPath);
+        }
+      }
+      
+      // Fallback to HTTP download for non-local files
       let fullUrl = imageUrl;
       if (imageUrl.startsWith('/')) {
-        // Use dynamic base URL - works in both development and production
-        const baseUrl = process.env.BASE_URL || 'https://your-domain.cloudwaysapps.com';
-        fullUrl = `${baseUrl}${imageUrl}`;
+        // Use localhost or base URL - in production this should be your domain
+        fullUrl = `http://localhost:4000${imageUrl}`;
       }
       
       console.log(`📥 Downloading image from: ${fullUrl}`);
@@ -495,12 +507,7 @@ class PinterestImageGenerator {
     }
     
     console.log(`🔍 Before Math.max: fontSize = ${fontSize}`);
-    // Style 1 needs larger font
-    if (variation === 1) {
-      fontSize = 38; // Larger font for Style 1
-    } else {
-      fontSize = 34; // Fixed 34px font size for other styles
-    }
+    fontSize = 32; // Fixed 42px font size
     console.log(`🔍 After Math.max(28, ${fontSize}): fontSize = ${fontSize}`);
     
     console.log(`🔍 FINAL CALCULATED FONT SIZE: ${fontSize}px`);
@@ -561,13 +568,13 @@ class PinterestImageGenerator {
     
     console.log(`🎨 Line spacing debug: fontSize=${fontSize}, lineHeight=${lineHeight}, variation=${variation}, totalLines=${lines.length}`);
     
-    // For ALL variations with recipe box areas, position text with proper spacing below labels/badges
-    if (ctx.recipeBoxArea) {
+    // For variation 2 (template style), position text inside the recipe box with proper spacing
+    if (variation === 2 && ctx.recipeBoxArea) {
       const boxArea = ctx.recipeBoxArea;
-      const textAreaY = boxArea.badgeY + boxArea.badgeHeight + 25; // Space below badge/label
-      const textAreaHeight = boxArea.height - (boxArea.badgeY + boxArea.badgeHeight + 35); // Available space for text
+      const textAreaY = boxArea.badgeY + boxArea.badgeHeight + 35; // More space below badge
+      const textAreaHeight = boxArea.height - (boxArea.badgeY + boxArea.badgeHeight + 50); // More available space
       startY = textAreaY + (textAreaHeight / 2) - ((lines.length - 1) * lineHeight / 2);
-      console.log(`🎨 Variation ${variation}: Positioning text with spacing - Badge ends at ${boxArea.badgeY + boxArea.badgeHeight}, text starts at ${textAreaY}`);
+      console.log(`🎨 Style 2: Positioning text with spacing - Badge ends at ${boxArea.badgeY + boxArea.badgeHeight}, text starts at ${textAreaY}`);
     }
 
     // First, add decorative elements (backgrounds) BEFORE text
@@ -688,9 +695,9 @@ class PinterestImageGenerator {
     // Creative recipe box variations with color matching
     switch (variation) {
       case 1:
-        // Style 1: Simple dashed lines top and bottom (reduced stroke)
+        // Style 1: Simple dashed lines top and bottom
         ctx.setLineDash([25, 10]);
-        ctx.lineWidth = 4; // Reduced from 8 to 4
+        ctx.lineWidth = 8;
         ctx.beginPath();
         ctx.moveTo(0, 15);
         ctx.lineTo(width, 15);
@@ -731,58 +738,57 @@ class PinterestImageGenerator {
         this.createCrystalGemStyle(ctx, width, height, dominantColor);
         break;
       case 10:
-        // Style 10: Chef's Special Badge
-        this.createChefSpecialStyle(ctx, width, height, dominantColor);
+        // Style 10: Sakura Cherry Blossom
+        this.createSakuraBlossomStyle(ctx, width, height, dominantColor);
         break;
       case 11:
-        // Style 11: Kitchen Tools Border
-        this.createKitchenToolsStyle(ctx, width, height, dominantColor);
+        // Style 11: Spicy Fire Flames
+        this.createSpicyFlamesStyle(ctx, width, height, dominantColor);
         break;
       case 12:
-        // Style 12: Recipe Book Style
-        this.createRecipeBookStyle(ctx, width, height, dominantColor);
+        // Style 12: Ocean Wave Splash
+        this.createOceanWaveStyle(ctx, width, height, dominantColor);
         break;
       case 13:
-        // Style 13: Cooking Flame Design
-        this.createCookingFlameStyle(ctx, width, height, dominantColor);
+        // Style 13: Fresh Garden Leaves
+        this.createGardenLeavesStyle(ctx, width, height, dominantColor);
         break;
       case 14:
-        // Style 14: Rustic Wood Grain - "HOMEMADE"
-        this.createRusticWoodStyle(ctx, width, height, dominantColor);
+        // Style 14: Rustic Wood Grain
+        this.createRusticWoodGrainStyle(ctx, width, height, dominantColor);
         break;
       case 15:
-        // Style 15: Vintage Recipe Card - "TRADITIONAL"
-        this.createVintageCardStyle(ctx, width, height, dominantColor);
+        // Style 15: Vintage Recipe Card
+        this.createVintageRecipeCardStyle(ctx, width, height, dominantColor);
         break;
       case 16:
-        // Style 16: Modern Minimalist Chef - "CHEF QUALITY"
-        this.createMinimalistChefStyle(ctx, width, height, dominantColor);
+        // Style 16: Modern Minimalist Chef
+        this.createModernMinimalistStyle(ctx, width, height, dominantColor);
         break;
       case 17:
-        // Style 17: Gourmet Restaurant Style
-        this.createGourmetRestaurantStyle(ctx, width, height, dominantColor);
+        // Style 17: Tropical Fruit Paradise
+        this.createTropicalFruitStyle(ctx, width, height, dominantColor);
         break;
       case 18:
-        // Style 18: Cozy Kitchen Warmth - "HOME COOKED"
+        // Style 18: Cozy Kitchen Warmth
         this.createCozyKitchenStyle(ctx, width, height, dominantColor);
         break;
       case 19:
-        // Style 19: Farm Fresh Market Look
-        this.createFarmFreshStyle(ctx, width, height, dominantColor);
+        // Style 19: Italian Pasta Swirls
+        this.createItalianPastaStyle(ctx, width, height, dominantColor);
         break;
       case 20:
-        // Style 20: Star Rating Border (Clean)
-        this.createStarRatingBorderStyle(ctx, width, height, dominantColor);
+        // Style 20: Bakery Flour Dust
+        this.createBakeryFlourStyle(ctx, width, height, dominantColor);
         break;
       case 21:
-        // Style 21: Circle Dots Pattern
-        this.createCircleDotsBorderStyle(ctx, width, height, dominantColor);
+        // Style 21: Fresh Herb Garden
+        this.createFreshHerbStyle(ctx, width, height, dominantColor);
         break;
       case 22:
-        // Style 22: Diamond Sparkles
-        this.createDiamondSparklesBorderStyle(ctx, width, height, dominantColor);
+        // Style 22: Grill Master BBQ
+        this.createGrillMasterStyle(ctx, width, height, dominantColor);
         break;
-      // REMOVED: Styles 23, 24 - keeping only essential styles
     }
 
     ctx.globalAlpha = 1;
@@ -886,7 +892,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('EASY', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('EINFACH', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     // Add subtle border accents
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
@@ -996,7 +1002,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('DELICIOUS', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('KÖSTLICH', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = {
       x: boxX, y: boxY, width: boxWidth, height: boxHeight,
@@ -1148,7 +1154,7 @@ class PinterestImageGenerator {
     const badgeY = boxY + 12; // Added top margin
     
     // Badge with modern angled design
-    ctx.fillStyle = '#2C3E50'; // Dark charcoal color
+    ctx.fillStyle = '#E74C3C'; // Modern red color
     ctx.beginPath();
     
     // Create angled badge shape
@@ -1619,7 +1625,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SPICY HOT', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('SCHARF', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2173,7 +2179,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 14px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('HOMEMADE', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('HAUSGEMACHT', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2249,7 +2255,7 @@ class PinterestImageGenerator {
     ctx.font = 'italic bold 13px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('TRADITIONAL', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('TRADITIONELL', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2310,7 +2316,7 @@ class PinterestImageGenerator {
     ctx.font = '500 12px "Helvetica Neue", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('CHEF QUALITY', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('PROFIQUALITÄT', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2391,7 +2397,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('TROPICAL', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('EXOTISCH', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2447,7 +2453,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('HOME COOKED', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('HAUSGEMACHT', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2599,7 +2605,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 12px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('FRESH BAKED', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('FRISCH GEBACKEN', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2676,7 +2682,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('GARDEN FRESH', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('GARTEN FRISCH', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -2750,7 +2756,7 @@ class PinterestImageGenerator {
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('GRILL MASTER', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
+    ctx.fillText('GRILLMEISTER', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
     
     ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
   }
@@ -3059,15 +3065,49 @@ class PinterestImageGenerator {
         throw new Error(`No recipe images found for recipe ID: ${recipeId}. Please generate some images first.`);
       }
 
-      // Check for grid images and crop them if found (regardless of total image count)
-      const gridImage = recipeImages.find(img => img.image_path && img.image_path.includes('grid_'));
-      if (gridImage) {
-        const imagePath = gridImage.image_path;
-        console.log(`🔍 Detected grid image: ${imagePath}, attempting to crop individual images...`);
-        
+      // Check for grid images and crop them automatically
+      let topImage = recipeImages[0];
+      let bottomImage = recipeImages[recipeImages.length - 1];
+      
+      // Check if any images are grids and crop them
+      if (topImage.image_path.includes('grid_')) {
+        console.log(`🔍 Top image is a grid, attempting to crop individual images...`);
+        try {
+          const gridBuffer = await this.downloadImage(topImage.image_path.startsWith('/') ? topImage.image_path : `/recipe_images/${topImage.image_path}`);
+          const { topImage: croppedTop, bottomImage: croppedBottom } = await this.cropGridToIndividualImages(gridBuffer);
+          
+          // Replace with cropped versions
+          topImage = { ...topImage, imageBuffer: croppedTop, image_path: 'cropped_top_' + topImage.image_path };
+          bottomImage = { ...bottomImage, imageBuffer: croppedBottom, image_path: 'cropped_bottom_' + topImage.image_path };
+          console.log(`✅ Successfully cropped top grid into individual images`);
+        } catch (cropError) {
+          console.warn(`⚠️ Could not crop top grid image: ${cropError.message}`);
+        }
+      }
+      
+      // If bottom image is also a grid and different from top, crop it too
+      if (bottomImage.image_path.includes('grid_') && bottomImage.image_path !== topImage.image_path && !bottomImage.imageBuffer) {
+        console.log(`🔍 Bottom image is also a grid, attempting to crop...`);
+        try {
+          const gridBuffer = await this.downloadImage(bottomImage.image_path.startsWith('/') ? bottomImage.image_path : `/recipe_images/${bottomImage.image_path}`);
+          const { topImage: croppedTop, bottomImage: croppedBottom } = await this.cropGridToIndividualImages(gridBuffer);
+          bottomImage = { ...bottomImage, imageBuffer: croppedBottom, image_path: 'cropped_bottom_' + bottomImage.image_path };
+          console.log(`✅ Successfully cropped bottom grid`);
+        } catch (cropError) {
+          console.warn(`⚠️ Could not crop bottom grid image: ${cropError.message}`);
+        }
+      }
+      
+      recipeImages = [topImage, bottomImage];
+      
+      // Legacy fallback for single grid image
+      if (recipeImages.length === 1 && recipeImages[0].image_path.includes('grid_') && !recipeImages[0].imageBuffer) {
+        const imagePath = recipeImages[0].image_path;
+        console.log(`📸 Fallback: Single grid image found: ${imagePath}`);
+        console.log(`🔍 Detected grid image, attempting to crop individual images...`);
         try {
           // Convert relative path to full URL for downloading
-          const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+          const baseUrl = 'http://localhost:4000';
           const fullGridUrl = imagePath.startsWith('http') ? imagePath : `${baseUrl}/recipe_images/${imagePath}`;
           
           // Download and crop the grid into individual images
@@ -3077,12 +3117,12 @@ class PinterestImageGenerator {
           // Create temporary individual image objects with the cropped data
           recipeImages = [
             { 
-              ...gridImage, 
+              ...recipeImages[0], 
               image_path: 'cropped_top_' + imagePath,
               imageBuffer: topImage
             },
             { 
-              ...gridImage, 
+              ...recipeImages[0], 
               image_path: 'cropped_bottom_' + imagePath,
               imageBuffer: bottomImage
             }
@@ -3090,7 +3130,12 @@ class PinterestImageGenerator {
           console.log(`✅ Successfully cropped grid into individual images`);
         } catch (cropError) {
           console.warn(`⚠️ Could not crop grid image, using original: ${cropError.message}`);
+          console.log(`📸 Using same grid image for both top and bottom positions`);
+          recipeImages = [recipeImages[0], recipeImages[0]];
         }
+      } else if (recipeImages.length === 1) {
+        console.log(`📸 Using same image for both top and bottom positions`);
+        recipeImages = [recipeImages[0], recipeImages[0]];
       }
 
       // Get Pinterest variation with overlay text
@@ -3203,7 +3248,7 @@ class PinterestImageGenerator {
         finalTopImageBuffer = topImageBuffer;
       } else {
         // Convert relative URLs to full URLs that the server can access
-        const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const baseUrl = 'http://localhost:4000';
         const fullTopImageUrl = topImageUrl.startsWith('http') ? topImageUrl : `${baseUrl}${topImageUrl}`;
         console.log(`🔍 Downloading top image from: ${fullTopImageUrl}`);
         finalTopImageBuffer = await this.downloadImage(fullTopImageUrl);
@@ -3215,25 +3260,25 @@ class PinterestImageGenerator {
         finalBottomImageBuffer = bottomImageBuffer;
       } else {
         // Convert relative URLs to full URLs that the server can access
-        const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const baseUrl = 'http://localhost:4000';
         const fullBottomImageUrl = bottomImageUrl.startsWith('http') ? bottomImageUrl : `${baseUrl}${bottomImageUrl}`;
         console.log(`🔍 Downloading bottom image from: ${fullBottomImageUrl}`);
         finalBottomImageBuffer = await this.downloadImage(fullBottomImageUrl);
         console.log('✅ Bottom image downloaded');
       }
 
-      // Convert to JPEG for Canvas compatibility (handles WebP, PNG, and already-JPEG images)
-      console.log('🔍 Ensuring top image is in JPEG format...');
+      // Convert WebP to JPEG for Canvas compatibility
+      console.log('🔍 Converting top image from WebP to JPEG...');
       const topImageJpeg = await sharp(finalTopImageBuffer)
         .jpeg({ quality: 90 })
         .toBuffer();
-      console.log('✅ Top image prepared for Canvas');
+      console.log('✅ Top image converted');
       
-      console.log('🔍 Ensuring bottom image is in JPEG format...');
+      console.log('🔍 Converting bottom image from WebP to JPEG...');
       const bottomImageJpeg = await sharp(finalBottomImageBuffer)
         .jpeg({ quality: 90 })
         .toBuffer();
-      console.log('✅ Bottom image prepared for Canvas');
+      console.log('✅ Bottom image converted');
 
       // Load converted images into Canvas
       console.log('🔍 Loading top image into Canvas...');
@@ -3322,8 +3367,7 @@ class PinterestImageGenerator {
       
       console.log(`🔍 Quadrant size: ${quadrantWidth}x${quadrantHeight}`);
       
-      // Extract top-left image (position 0,0) and convert to JPEG for Canvas compatibility
-      console.log(`🔍 Cropping top-left quadrant and converting to JPEG...`);
+      // Extract top-left image (position 0,0)
       const topImage = await sharp(gridBuffer)
         .extract({
           left: 0,
@@ -3331,11 +3375,9 @@ class PinterestImageGenerator {
           width: quadrantWidth,
           height: quadrantHeight
         })
-        .jpeg({ quality: 90 })
         .toBuffer();
       
-      // Extract bottom-right image (position width/2, height/2) and convert to JPEG
-      console.log(`🔍 Cropping bottom-right quadrant and converting to JPEG...`);
+      // Extract bottom-right image (position width/2, height/2)  
       const bottomImage = await sharp(gridBuffer)
         .extract({
           left: quadrantWidth,
@@ -3343,10 +3385,9 @@ class PinterestImageGenerator {
           width: quadrantWidth,
           height: quadrantHeight
         })
-        .jpeg({ quality: 90 })
         .toBuffer();
       
-      console.log(`✅ Successfully cropped grid into individual JPEG images`);
+      console.log(`✅ Successfully cropped grid into individual images`);
       
       return { topImage, bottomImage };
       
@@ -3355,647 +3396,6 @@ class PinterestImageGenerator {
       throw new Error(`Failed to crop grid image: ${error.message}`);
     }
   }
-
-
-  /**
-   * Style 20: Star Rating Border
-   */
-  createStarRatingBorderStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 185;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Gradient background
-    const gradient = ctx.createLinearGradient(0, boxY, 0, boxY + boxHeight);
-    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
-    gradient.addColorStop(0.5, `rgba(${Math.min(255, r + 30)}, ${Math.min(255, g + 30)}, ${Math.min(255, b + 30)}, 0.8)`);
-    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.9)`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Star rating border - centered
-    ctx.fillStyle = '#FFD700';
-    ctx.strokeStyle = '#FFA500';
-    ctx.lineWidth = 1;
-    
-    const starSize = 15;
-    const spacing = 35;
-    const totalStarWidth = 4 * spacing; // 5 stars = 4 spaces between them
-    const startX = (width - totalStarWidth) / 2; // Center the stars
-    
-    // Top border stars (5 stars) - centered
-    for (let i = 0; i < 5; i++) {
-      const x = startX + (i * spacing);
-      this.drawStar(ctx, x, boxY + 20, starSize);
-    }
-    
-    // Bottom border stars (5 stars) - centered
-    for (let i = 0; i < 5; i++) {
-      const x = startX + (i * spacing);
-      this.drawStar(ctx, x, boxY + boxHeight - 25, starSize);
-    }
-    
-    // No badge - clean star-only design with proper spacing for text
-    const badgeY = boxY + boxHeight - 60; // Extra space from bottom for text breathing room
-    const badgeHeight = 0; // No badge height
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 21: Circle Dots Pattern (Inspired by Style 20)
-   */
-  createCircleDotsBorderStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 175;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Elegant radial gradient background
-    const gradient = ctx.createRadialGradient(width/2, boxY + boxHeight/2, 0, width/2, boxY + boxHeight/2, width/2);
-    gradient.addColorStop(0, `rgba(${Math.min(255, r + 35)}, ${Math.min(255, g + 35)}, ${Math.min(255, b + 35)}, 0.9)`);
-    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.8)`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Circle dots pattern - centered like stars
-    ctx.fillStyle = '#00BCD4';
-    ctx.strokeStyle = '#0097A7';
-    ctx.lineWidth = 1;
-    
-    const dotRadius = 8;
-    const spacing = 35;
-    const totalDotsWidth = 6 * spacing; // 7 dots = 6 spaces between them  
-    const startX = (width - totalDotsWidth) / 2; // Center the dots
-    
-    // Top border circles (7 dots) - centered
-    for (let i = 0; i < 7; i++) {
-      const x = startX + (i * spacing);
-      ctx.beginPath();
-      ctx.arc(x, boxY + 20, dotRadius, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.stroke();
-    }
-    
-    // Bottom border circles (7 dots) - centered
-    for (let i = 0; i < 7; i++) {
-      const x = startX + (i * spacing);
-      ctx.beginPath();
-      ctx.arc(x, boxY + boxHeight - 25, dotRadius, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.stroke();
-    }
-    
-    // Clean design with proper spacing for text
-    const badgeY = boxY + boxHeight - 60; // Extra space from bottom for text breathing room
-    const badgeHeight = 0; // No badge height
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 22: Diamond Sparkles (Inspired by Style 20)
-   */
-  createDiamondSparklesBorderStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 180;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Sparkling gradient background
-    const gradient = ctx.createLinearGradient(0, boxY, width, boxY + boxHeight);
-    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
-    gradient.addColorStop(0.5, `rgba(${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)}, 0.8)`);
-    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.9)`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Diamond sparkles pattern - centered like stars
-    ctx.fillStyle = '#FF9800';
-    ctx.strokeStyle = '#F57C00';
-    ctx.lineWidth = 1;
-    
-    const diamondSize = 10;
-    const spacing = 45;
-    const totalDiamondsWidth = 4 * spacing; // 5 diamonds = 4 spaces between them
-    const startX = (width - totalDiamondsWidth) / 2; // Center the diamonds
-    
-    // Top border diamonds (5 diamonds) - centered
-    for (let i = 0; i < 5; i++) {
-      const x = startX + (i * spacing);
-      this.drawDiamond(ctx, x, boxY + 20, diamondSize);
-      
-      // Add small sparkles around main diamonds
-      this.drawDiamond(ctx, x - 15, boxY + 15, 4);
-      this.drawDiamond(ctx, x + 15, boxY + 25, 4);
-    }
-    
-    // Bottom border diamonds (5 diamonds) - centered
-    for (let i = 0; i < 5; i++) {
-      const x = startX + (i * spacing);
-      this.drawDiamond(ctx, x, boxY + boxHeight - 25, diamondSize);
-      
-      // Add small sparkles around main diamonds
-      this.drawDiamond(ctx, x - 15, boxY + boxHeight - 20, 4);
-      this.drawDiamond(ctx, x + 15, boxY + boxHeight - 30, 4);
-    }
-    
-    // Clean design with proper spacing for text
-    const badgeY = boxY + boxHeight - 60; // Extra space from bottom for text breathing room
-    const badgeHeight = 0; // No badge height
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 10: Chef's Special Badge
-   */
-  createChefSpecialStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Professional chef background
-    const gradient = ctx.createLinearGradient(0, boxY, 0, boxY + boxHeight);
-    gradient.addColorStop(0, '#2C3E50');
-    gradient.addColorStop(1, '#34495E');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Chef's hat badge
-    const badgeWidth = 120;
-    const badgeHeight = 30;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 12;
-    
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.strokeStyle = '#2C3E50';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    
-    ctx.fillStyle = '#2C3E50';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText("CHEF'S SPECIAL", badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 11: Kitchen Tools Border
-   */
-  createKitchenToolsStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Kitchen tools background
-    ctx.fillStyle = '#F8F8FF';
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Draw kitchen tools border
-    ctx.strokeStyle = '#8B4513';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([15, 5]);
-    ctx.strokeRect(boxX + 10, boxY + 10, boxWidth - 20, boxHeight - 20);
-    ctx.setLineDash([]);
-    
-    // Kitchen tools badge
-    const badgeWidth = 140;
-    const badgeHeight = 28;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 15;
-    
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('KITCHEN ESSENTIALS', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 12: Recipe Book Style
-   */
-  createRecipeBookStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Old paper background
-    ctx.fillStyle = '#FDF5E6';
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Paper aging effect
-    ctx.fillStyle = 'rgba(139, 69, 19, 0.1)';
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Recipe book border
-    ctx.strokeStyle = '#8B4513';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(boxX + 8, boxY + 8, boxWidth - 16, boxHeight - 16);
-    
-    // Recipe book badge
-    const badgeWidth = 130;
-    const badgeHeight = 26;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 18;
-    
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FDF5E6';
-    ctx.font = 'italic bold 11px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('RECIPE COLLECTION', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 13: Cooking Flame Design
-   */
-  createCookingFlameStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Fire background gradient
-    const gradient = ctx.createRadialGradient(width/2, boxY + boxHeight, 0, width/2, boxY + boxHeight, boxHeight);
-    gradient.addColorStop(0, '#FF4500');
-    gradient.addColorStop(0.5, '#FF6347');
-    gradient.addColorStop(1, '#FFE4E1');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Flame effects
-    ctx.fillStyle = 'rgba(255, 69, 0, 0.3)';
-    for (let i = 0; i < 8; i++) {
-      const flameX = boxX + (i * boxWidth / 7);
-      const flameHeight = 30 + Math.sin(i) * 10;
-      ctx.fillRect(flameX, boxY + boxHeight - flameHeight, boxWidth / 7, flameHeight);
-    }
-    
-    // Hot cooking badge
-    const badgeWidth = 120;
-    const badgeHeight = 30;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 15;
-    
-    ctx.fillStyle = '#8B0000';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('HOT & FRESH', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 14: Rustic Wood Grain - "HOMEMADE"
-   */
-  createRusticWoodStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Wood grain background
-    const gradient = ctx.createLinearGradient(0, boxY, 0, boxY + boxHeight);
-    gradient.addColorStop(0, '#D2B48C');
-    gradient.addColorStop(0.3, '#DEB887');
-    gradient.addColorStop(0.7, '#D2B48C');
-    gradient.addColorStop(1, '#CD853F');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Wood grain lines
-    ctx.strokeStyle = 'rgba(139, 69, 19, 0.3)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 8; i++) {
-      const y = boxY + (i * boxHeight / 7);
-      ctx.beginPath();
-      ctx.moveTo(boxX, y);
-      ctx.lineTo(boxX + boxWidth, y + Math.sin(i) * 5);
-      ctx.stroke();
-    }
-    
-    // Homemade badge
-    const badgeWidth = 100;
-    const badgeHeight = 28;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 12;
-    
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('HOMEMADE', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 15: Vintage Recipe Card - "TRADITIONAL"
-   */
-  createVintageCardStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width - 20;
-    const boxHeight = 160;
-    const boxX = 10;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Vintage card background
-    ctx.fillStyle = '#FFF8DC';
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Vintage border with corner decorations
-    ctx.strokeStyle = '#8B4513';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(boxX + 5, boxY + 5, boxWidth - 10, boxHeight - 10);
-    
-    // Corner decorations
-    const cornerSize = 15;
-    const corners = [
-      [boxX + 5, boxY + 5], // top-left
-      [boxX + boxWidth - 5, boxY + 5], // top-right
-      [boxX + 5, boxY + boxHeight - 5], // bottom-left
-      [boxX + boxWidth - 5, boxY + boxHeight - 5] // bottom-right
-    ];
-    
-    ctx.fillStyle = '#8B4513';
-    corners.forEach(([x, y]) => {
-      ctx.fillRect(x - cornerSize/2, y - 1, cornerSize, 2);
-      ctx.fillRect(x - 1, y - cornerSize/2, 2, cornerSize);
-    });
-    
-    // Traditional badge
-    const badgeWidth = 110;
-    const badgeHeight = 26;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 15;
-    
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FFF8DC';
-    ctx.font = 'italic bold 10px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('TRADITIONAL', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 16: Modern Minimalist Chef - "CHEF QUALITY"
-   */
-  createMinimalistChefStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Clean minimalist background
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Subtle border
-    ctx.strokeStyle = '#E0E0E0';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(boxX + 1, boxY + 1, boxWidth - 2, boxHeight - 2);
-    
-    // Modern accent line
-    ctx.fillStyle = '#2C3E50';
-    ctx.fillRect(boxX, boxY, boxWidth, 3);
-    ctx.fillRect(boxX, boxY + boxHeight - 3, boxWidth, 3);
-    
-    // Chef quality badge
-    const badgeWidth = 130;
-    const badgeHeight = 24;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 18;
-    
-    ctx.fillStyle = '#2C3E50';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('CHEF QUALITY', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 17: Gourmet Restaurant Style
-   */
-  createGourmetRestaurantStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Elegant restaurant background
-    const gradient = ctx.createLinearGradient(0, boxY, 0, boxY + boxHeight);
-    gradient.addColorStop(0, '#1C1C1C');
-    gradient.addColorStop(1, '#2F2F2F');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Gold accent lines
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(boxX, boxY + 5, boxWidth, 2);
-    ctx.fillRect(boxX, boxY + boxHeight - 7, boxWidth, 2);
-    
-    // Gourmet badge
-    const badgeWidth = 120;
-    const badgeHeight = 28;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 16;
-    
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#1C1C1C';
-    ctx.font = 'italic bold 11px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('GOURMET', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 18: Cozy Kitchen Warmth - "HOME COOKED"
-   */
-  createCozyKitchenStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Warm cozy background
-    const gradient = ctx.createRadialGradient(width/2, boxY + boxHeight/2, 0, width/2, boxY + boxHeight/2, boxWidth/2);
-    gradient.addColorStop(0, '#FFF8E1');
-    gradient.addColorStop(1, '#FFE0B2');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Checkered pattern border
-    ctx.fillStyle = '#FF8A65';
-    const checkSize = 8;
-    for (let x = 0; x < boxWidth; x += checkSize * 2) {
-      ctx.fillRect(boxX + x, boxY, checkSize, 8);
-      ctx.fillRect(boxX + x, boxY + boxHeight - 8, checkSize, 8);
-    }
-    
-    // Home cooked badge
-    const badgeWidth = 120;
-    const badgeHeight = 26;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 17;
-    
-    ctx.fillStyle = '#BF360C';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('HOME COOKED', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-  /**
-   * Style 19: Farm Fresh Market Look
-   */
-  createFarmFreshStyle(ctx, width, height, dominantColor) {
-    const { r, g, b } = dominantColor;
-    const boxWidth = width;
-    const boxHeight = 160;
-    const boxX = 0;
-    const boxY = (height - boxHeight) / 2;
-    
-    // Fresh market background
-    const gradient = ctx.createLinearGradient(0, boxY, 0, boxY + boxHeight);
-    gradient.addColorStop(0, '#E8F5E8');
-    gradient.addColorStop(1, '#C8E6C9');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Market stall stripes
-    ctx.fillStyle = '#4CAF50';
-    for (let i = 0; i < boxWidth; i += 30) {
-      ctx.fillRect(boxX + i, boxY, 3, boxHeight);
-    }
-    
-    // Farm fresh badge
-    const badgeWidth = 110;
-    const badgeHeight = 28;
-    const badgeX = (width - badgeWidth) / 2;
-    const badgeY = boxY + 16;
-    
-    ctx.fillStyle = '#2E7D32';
-    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('FARM FRESH', badgeX + badgeWidth/2, badgeY + badgeHeight/2);
-    
-    ctx.recipeBoxArea = { x: boxX, y: boxY, width: boxWidth, height: boxHeight, badgeY: badgeY, badgeHeight: badgeHeight };
-  }
-
-
-  // Helper functions for drawing geometric shapes
-  drawDiamond(ctx, centerX, centerY, size) {
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY - size/2);
-    ctx.lineTo(centerX + size/2, centerY);
-    ctx.lineTo(centerX, centerY + size/2);
-    ctx.lineTo(centerX - size/2, centerY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  drawStar(ctx, centerX, centerY, size) {
-    const spikes = 5;
-    const outerRadius = size;
-    const innerRadius = size * 0.4;
-    
-    ctx.beginPath();
-    for (let i = 0; i < spikes * 2; i++) {
-      const radius = i % 2 === 0 ? outerRadius : innerRadius;
-      const angle = (i * Math.PI) / spikes;
-      const x = centerX + Math.cos(angle - Math.PI/2) * radius;
-      const y = centerY + Math.sin(angle - Math.PI/2) * radius;
-      
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  drawHexagon(ctx, centerX, centerY, size) {
-    const sides = 6;
-    ctx.beginPath();
-    for (let i = 0; i < sides; i++) {
-      const angle = (i * 2 * Math.PI) / sides;
-      const x = centerX + size * Math.cos(angle);
-      const y = centerY + size * Math.sin(angle);
-      
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  drawTriangle(ctx, centerX, centerY, size, pointDown = false) {
-    ctx.beginPath();
-    if (pointDown) {
-      ctx.moveTo(centerX, centerY + size/2);
-      ctx.lineTo(centerX - size/2, centerY - size/2);
-      ctx.lineTo(centerX + size/2, centerY - size/2);
-    } else {
-      ctx.moveTo(centerX, centerY - size/2);
-      ctx.lineTo(centerX - size/2, centerY + size/2);
-      ctx.lineTo(centerX + size/2, centerY + size/2);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  // Helper functions for remaining styles
 
   /**
    * Batch generate Pinterest images for multiple recipes

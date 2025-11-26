@@ -391,7 +391,12 @@ class MidjourneyClient {
 
         // Create a unique ID to identify this generation
         const uniqueId = Date.now() - Math.floor(Math.random() * 1000);
-        const prompt = `${promptText} ${uniqueId} ${promptTags}`;
+        
+        // FIXED: Clean the prompt text to remove existing parameters to avoid duplicates
+        const cleanPromptText = promptText.replace(/--v\s+[\d.]+/g, '').replace(/--q\s+\d+/g, '').replace(/--s\s+\d+/g, '').trim();
+        
+        // FIXED: Embed unique ID as bare number within prompt text, exactly as shown in working example
+        const prompt = `${cleanPromptText} ${uniqueId} ${promptTags}`;
         const originalPromptText = promptText;
         
         // Enhanced safety check

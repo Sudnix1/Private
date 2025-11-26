@@ -4,6 +4,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const moment = require('moment');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const db = new sqlite3.Database(path.join(__dirname, '../data/recipes.db'));
 
@@ -82,16 +83,24 @@ const bufferDb = {
 
 // Buffer API integration
 class BufferAPI {
-  constructor(accessToken) {
+  constructor(accessToken, proxyUrl = null) {
     this.accessToken = accessToken;
     this.baseURL = 'https://api.bufferapp.com/1';
+    
+    // Set up proxy configuration if provided
+    this.axiosConfig = {};
+    if (proxyUrl) {
+      this.axiosConfig.httpsAgent = new HttpsProxyAgent(proxyUrl);
+      this.axiosConfig.proxy = false; // Disable axios built-in proxy when using custom agent
+    }
   }
 
   // Get user's Buffer profiles
   async getProfiles() {
     try {
       const response = await axios.get(`${this.baseURL}/profiles.json`, {
-        params: { access_token: this.accessToken }
+        params: { access_token: this.accessToken },
+        ...this.axiosConfig
       });
       return response.data;
     } catch (error) {
@@ -118,7 +127,7 @@ class BufferAPI {
         postData.scheduled_at = Math.floor(new Date(scheduledAt).getTime() / 1000);
       }
 
-      const response = await axios.post(`${this.baseURL}/updates/create.json`, postData);
+      const response = await axios.post(`${this.baseURL}/updates/create.json`, postData, this.axiosConfig);
       return response.data;
     } catch (error) {
       throw new Error(`Buffer API error: ${error.response?.data?.message || error.message}`);
@@ -129,7 +138,8 @@ class BufferAPI {
   async getPost(postId) {
     try {
       const response = await axios.get(`${this.baseURL}/updates/${postId}.json`, {
-        params: { access_token: this.accessToken }
+        params: { access_token: this.accessToken },
+        ...this.axiosConfig
       });
       return response.data;
     } catch (error) {
@@ -142,7 +152,7 @@ class BufferAPI {
     try {
       const response = await axios.post(`${this.baseURL}/updates/${postId}/destroy.json`, {
         access_token: this.accessToken
-      });
+      }, this.axiosConfig);
       return response.data;
     } catch (error) {
       throw new Error(`Buffer API error: ${error.response?.data?.message || error.message}`);

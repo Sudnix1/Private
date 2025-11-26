@@ -61,11 +61,35 @@ async function initTables() {
         username TEXT NOT NULL,
         password TEXT NOT NULL,
         default_status TEXT DEFAULT 'draft',
+        include_pinterest_images BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, website_id)
       )
     `);
+
+    // Add include_pinterest_images column if it doesn't exist (for existing databases)
+    try {
+      await runQuery(`ALTER TABLE wordpress_settings ADD COLUMN include_pinterest_images BOOLEAN DEFAULT FALSE`);
+      console.log('✅ Added include_pinterest_images column to wordpress_settings table');
+    } catch (error) {
+      // Column already exists or other error, ignore
+      if (error.message.includes('duplicate column name') || error.message.includes('already exists')) {
+        console.log('✅ include_pinterest_images column already exists');
+      } else {
+        console.log('⚠️ Error adding include_pinterest_images column:', error.message);
+      }
+    }
+
+    // Update any existing records that don't have the include_pinterest_images value set
+    try {
+      const result = await runQuery(`UPDATE wordpress_settings SET include_pinterest_images = 0 WHERE include_pinterest_images IS NULL`);
+      if (result.changes > 0) {
+        console.log(`✅ Updated ${result.changes} existing records to set include_pinterest_images = 0`);
+      }
+    } catch (updateError) {
+      console.log('⚠️ Error updating existing records:', updateError.message);
+    }
 
     // WordPress publications history
     await runQuery(`
@@ -190,13 +214,14 @@ const wordpressDb = {
                 await runQuery(
                     `UPDATE wordpress_settings 
                     SET site_url = ?, username = ?, password = ?, 
-                    default_status = ?, updated_at = CURRENT_TIMESTAMP
+                    default_status = ?, include_pinterest_images = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?`,
                     [
                         settings.siteUrl,
                         settings.username,
                         settings.password,
                         settings.defaultStatus || 'draft',
+                        settings.includePinterestImages ? 1 : 0,
                         existingRecord.id
                     ]
                 );
@@ -207,8 +232,8 @@ const wordpressDb = {
                 const id = uuidv4();
                 await runQuery(
                     `INSERT INTO wordpress_settings 
-                    (id, user_id, website_id, site_url, username, password, default_status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    (id, user_id, website_id, site_url, username, password, default_status, include_pinterest_images)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         id,
                         userId,
@@ -216,7 +241,8 @@ const wordpressDb = {
                         settings.siteUrl,
                         settings.username,
                         settings.password,
-                        settings.defaultStatus || 'draft'
+                        settings.defaultStatus || 'draft',
+                        settings.includePinterestImages ? 1 : 0
                     ]
                 );
                 return id;
@@ -238,22 +264,25 @@ const wordpressDb = {
             let query, params;
             
             if (websiteId) {
-                // For multi-tenant: Get settings for the website (regardless of user)
+                // For multi-tenant: Get settings for the website, prioritizing current user's settings
                 // This allows employees to use WordPress settings configured by admin for the website
+                // But if the current user has their own settings, use those instead
                 query = `
                     SELECT id, user_id, website_id, site_url, username, password, 
-                    default_status, created_at, updated_at
+                    default_status, include_pinterest_images, created_at, updated_at
                     FROM wordpress_settings
                     WHERE website_id = ?
-                    ORDER BY created_at DESC
+                    ORDER BY 
+                        CASE WHEN user_id = ? THEN 0 ELSE 1 END,
+                        created_at DESC
                     LIMIT 1
                 `;
-                params = [websiteId];
+                params = [websiteId, userId];
             } else {
                 // Try to get default/global settings (NULL website_id)
                 query = `
                     SELECT id, user_id, website_id, site_url, username, password, 
-                    default_status, created_at, updated_at
+                    default_status, include_pinterest_images, created_at, updated_at
                     FROM wordpress_settings
                     WHERE user_id = ? AND (website_id IS NULL OR website_id = '')
                 `;
@@ -268,7 +297,7 @@ const wordpressDb = {
                 
                 const fallbackQuery = `
                     SELECT id, user_id, website_id, site_url, username, password, 
-                    default_status, created_at, updated_at
+                    default_status, include_pinterest_images, created_at, updated_at
                     FROM wordpress_settings
                     WHERE (website_id IS NULL OR website_id = '')
                     ORDER BY created_at DESC

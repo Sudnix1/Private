@@ -93,11 +93,26 @@ async function initApiKeyTable() {
 // Enhanced getApiKey function for api-key-manager.js
 // Replace the existing getApiKey function with this one
 
-// Get an API key for a specific service
+// Get an API key for a specific service - PRIORITIZE ENVIRONMENT VARIABLES
 async function getApiKey(service) {
   try {
     console.log(`Retrieving API key for ${service}...`);
     
+    // PRIORITY 1: Check environment variables first (but validate them)
+    if (service.toLowerCase() === 'openai') {
+      const envKey = process.env.OPENAI_API_KEY;
+      if (envKey && envKey.length > 20) {
+        // Quick validation - check if it looks like a real key
+        if (envKey.startsWith('sk-proj-') && !envKey.includes('hhmMzrw')) {
+          console.log('✅ Found valid API key in environment variables');
+          return envKey;
+        } else {
+          console.log('⚠️ Environment API key appears to be a placeholder/invalid, checking database...');
+        }
+      }
+    }
+    
+    // PRIORITY 2: Check database as fallback
     const row = await getOne(
       `SELECT id, api_key FROM api_keys WHERE service = ? AND is_active = 1 ORDER BY updated_at DESC LIMIT 1`,
       [service.toLowerCase()]
@@ -106,30 +121,25 @@ async function getApiKey(service) {
     if (row && row.api_key) {
       console.log(`Found API key in database for ${service} (ID: ${row.id.substring(0, 8)}...)`);
       const decoded = simpleDecode(row.api_key);
-      return decoded;
-    }
-    
-    console.log(`No API key found in database for ${service}, checking environment variables...`);
-    
-    // If no key in database, fall back to environment variable
-    if (service.toLowerCase() === 'openai') {
-      const envKey = process.env.OPENAI_API_KEY;
-      if (envKey) {
-        console.log('Found API key in environment variables');
-        return envKey;
+      
+      // Validate database key length
+      if (decoded && decoded.length > 20) {
+        return decoded;
+      } else {
+        console.log(`❌ Database API key for ${service} appears invalid (length: ${decoded?.length || 0})`);
       }
     }
     
-    console.log(`No API key found for ${service}`);
+    console.log(`❌ No valid API key found for ${service}`);
     return null;
   } catch (error) {
     console.error(`Error retrieving API key for ${service}:`, error);
     
-    // Fall back to environment variable as a last resort
+    // Final fallback to environment variable
     if (service.toLowerCase() === 'openai') {
       const envKey = process.env.OPENAI_API_KEY;
-      if (envKey) {
-        console.log('Found API key in environment variables (fallback after error)');
+      if (envKey && envKey.length > 20) {
+        console.log('✅ Found API key in environment variables (error fallback)');
         return envKey;
       }
     }
