@@ -259,10 +259,6 @@ async function processAndSaveCroppedImage(file, index) {
   }
 }
 
-const exportPinterestCSV = require('./routes/export-pinterest-csv');
-app.use(exportPinterestCSV);
-
-
 // Route to handle single image upload (for backward compatibility)
 app.post('/api/images/upload-single', isAuthenticated, upload.single('image'), async (req, res) => {
   try {
