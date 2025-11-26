@@ -1,1 +1,1 @@
-# Dev notes\n\n- First test change.
+# Dev notes\n\n- Clean start after history reset.
